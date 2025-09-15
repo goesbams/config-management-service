@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/goesbams/config-management-service/models"
+	"github.com/goesbams/config-management-service/utils"
 )
 
 // in-memory storing
@@ -20,8 +21,8 @@ func CreateConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// validate config
-	if newConfig.Name == "" || newConfig.Data == nil {
-		http.Error(w, "Invalid config", http.StatusBadRequest)
+	if err := utils.ValidateConfig(newConfig, configStore); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

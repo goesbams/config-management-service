@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/goesbams/config-management-service/handlers"
 )
 
 func main() {
