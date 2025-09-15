@@ -42,7 +42,35 @@ func CreateConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateConfig(w http.ResponseWriter, r *http.Request) {
+	log.Println("request update configuration")
 
+	var updatedConfig models.Config
+	err := json.NewDecoder(r.Body).Decode(&updatedConfig)
+	if err != nil {
+		log.Println("error decoding request body:", err)
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	if err := utils.ValidateConfig(updatedConfig, configStore); err != nil {
+		log.Println("invalid configuration data")
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	existingConfig, found := configStore[updatedConfig.Name]
+	if !found {
+		log.Println("config not found")
+		http.Error(w, "config not found", http.StatusNotFound)
+		return
+	}
+
+	updatedConfig.Version = existingConfig.Version + 1
+	configStore[updatedConfig.Name] = updatedConfig
+
+	log.Printf("config updated: %s, version: %d", updatedConfig.Name, updatedConfig.Version)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(updatedConfig)
 }
 
 func RollbackConfig(w http.ResponseWriter, r *http.Request) {
