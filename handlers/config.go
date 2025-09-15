@@ -105,7 +105,24 @@ func RollbackConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func FetchConfig(w http.ResponseWriter, r *http.Request) {
+	log.Println("request fetch configuration")
 
+	configName := r.URL.Query().Get("name")
+	if configName == "" {
+		http.Error(w, "config name is required", http.StatusBadRequest)
+		return
+	}
+
+	config, exists := configStore[configName]
+	if !exists {
+		log.Println(w, "config not found")
+		http.Error(w, "config not found", http.StatusNotFound)
+		return
+	}
+
+	log.Printf("latest config: %s", configName)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(config)
 }
 
 func ListVersionsHandler(w http.ResponseWriter, r *http.Request) {
