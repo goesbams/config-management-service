@@ -74,7 +74,34 @@ func UpdateConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func RollbackConfig(w http.ResponseWriter, r *http.Request) {
+	log.Println("request for rollback configuration")
 
+	var rollbackRequest struct {
+		Name    string `json:"name"`
+		Version int    `json:"version"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&rollbackRequest)
+	if err != nil {
+		log.Println("error decoding request body:", err)
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	existingConfig, exists := configStore[rollbackRequest.Name]
+	if !exists || rollbackRequest.Version >= existingConfig.Version {
+		log.Println("invalid version")
+		http.Error(w, "invalid version", http.StatusBadRequest)
+		return
+	}
+
+	rollbackConfig := existingConfig
+	rollbackConfig.Version = rollbackConfig.Version
+	configStore[rollbackRequest.Name] = rollbackConfig
+
+	log.Printf("config rollback: %s, version: %d", rollbackConfig.Name, rollbackConfig.Version)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(rollbackConfig)
 }
 
 func FetchConfig(w http.ResponseWriter, r *http.Request) {
