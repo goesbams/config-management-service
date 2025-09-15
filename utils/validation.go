@@ -15,9 +15,5 @@ func ValidateConfig(config models.Config, configStore map[string]models.Config) 
 		return errors.New("config data is required")
 	}
 
-	if _, found := configStore[config.Name]; found {
-		return errors.New("config already exists")
-	}
-
 	return nil
 }
