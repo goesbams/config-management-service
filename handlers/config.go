@@ -96,7 +96,7 @@ func RollbackConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rollbackConfig := existingConfig
-	rollbackConfig.Version = rollbackConfig.Version
+	rollbackConfig.Version = rollbackRequest.Version
 	configStore[rollbackRequest.Name] = rollbackConfig
 
 	log.Printf("config rollback: %s, version: %d", rollbackConfig.Name, rollbackConfig.Version)
