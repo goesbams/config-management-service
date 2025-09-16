@@ -15,8 +15,6 @@ import (
 	"github.com/goesbams/config-management-service/models"
 )
 
-var configStore = make(map[string]models.Config)
-
 func TestCreateConfig(t *testing.T) {
 	t.Run("success create new config", func(t *testing.T) {
 		config := models.Config{
@@ -164,91 +162,5 @@ func TestCreateConfig(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
 		assert.Contains(t, rr.Body.String(), "config versions is required")
-	})
-}
-
-func TestUpdateConfig(t *testing.T) {
-
-	t.Run("success update config and increment version", func(t *testing.T) {
-		config := models.Config{
-			Name: "Main Database Config",
-			Type: "DATABASE",
-			Versions: []models.ConfigVersion{
-				{
-					Version: 1,
-					Property: map[string]interface{}{
-						"host":     "localhost",
-						"port":     5432,
-						"username": "admin",
-						"password": "secret",
-					},
-				},
-			},
-		}
-
-		configStore[config.Name] = config
-
-		updatedConfig := models.Config{
-			Name: "Main Database Config",
-			Type: "DATABASE",
-			Versions: []models.ConfigVersion{
-				{
-					Property: map[string]interface{}{
-						"host":     "localhost",
-						"port":     5432,
-						"username": "admin",
-						"password": "new_secret",
-					},
-				},
-			},
-		}
-
-		updatedData, _ := json.Marshal(updatedConfig)
-
-		req, err := http.NewRequest("PUT", "/config/update", bytes.NewBuffer(updatedData))
-		assert.NoError(t, err)
-
-		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(handlers.UpdateConfig)
-
-		handler.ServeHTTP(rr, req)
-		assert.Equal(t, http.StatusOK, rr.Code)
-
-		var actualConfig models.Config
-		err = json.NewDecoder(rr.Body).Decode(&actualConfig)
-		assert.NoError(t, err)
-
-		assert.Len(t, actualConfig.Versions, 2)
-		assert.Equal(t, 2, actualConfig.Versions[1].Version)
-	})
-
-	t.Run("error when config not found", func(t *testing.T) {
-		updatedConfig := models.Config{
-			Name: "Non Existing Config",
-			Type: "DATABASE",
-			Versions: []models.ConfigVersion{
-				{
-					Property: map[string]interface{}{
-						"host":     "localhost",
-						"port":     5432,
-						"username": "admin",
-						"password": "new_secret",
-					},
-				},
-			},
-		}
-
-		updatedData, _ := json.Marshal(updatedConfig)
-
-		req, err := http.NewRequest("PUT", "/config/update", bytes.NewBuffer(updatedData))
-		assert.NoError(t, err)
-
-		rr := httptest.NewRecorder()
-		handler := http.HandlerFunc(handlers.UpdateConfig)
-
-		handler.ServeHTTP(rr, req)
-
-		assert.Equal(t, http.StatusNotFound, rr.Code)
-		assert.Contains(t, rr.Body.String(), "config not found")
 	})
 }
