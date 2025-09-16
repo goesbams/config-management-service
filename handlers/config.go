@@ -100,7 +100,7 @@ func RollbackConfig(w http.ResponseWriter, r *http.Request) {
 	existingConfig, found := configStore[rollbackRequest.Name]
 	if !found {
 		log.Println("config not found")
-		http.Error(w, "config not found", http.StatusBadRequest)
+		http.Error(w, "config not found", http.StatusNotFound)
 		return
 	}
 
@@ -163,7 +163,7 @@ func FetchConfig(w http.ResponseWriter, r *http.Request) {
 
 		if version <= 0 || version > len(config.Versions) {
 			log.Println("version not found")
-			http.Error(w, "version not found", http.StatusBadRequest)
+			http.Error(w, "version not found", http.StatusNotFound)
 			return
 		}
 
