@@ -25,14 +25,13 @@ func CreateConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// validate config
-	if err := utils.ValidateConfig(newConfig, configStore); err != nil {
-		log.Println("invalid configuration data")
+	if err := utils.ValidateConfig(newConfig); err != nil {
+		log.Println("invalid configuration data", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// store config with a version
-	newConfig.Version = 1
+	// store new config with a version
 	configStore[newConfig.Name] = newConfig
 
 	// config created response
@@ -126,5 +125,4 @@ func FetchConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListVersionsHandler(w http.ResponseWriter, r *http.Request) {
-
 }
