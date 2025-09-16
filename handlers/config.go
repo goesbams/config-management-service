@@ -142,8 +142,8 @@ func FetchConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	config, exists := configStore[configName]
-	if !exists {
+	config, found := configStore[configName]
+	if !found {
 		log.Println(w, "config not found")
 		http.Error(w, "config not found", http.StatusNotFound)
 		return
@@ -185,4 +185,23 @@ func FetchConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListVersionsHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("request list config versions")
+
+	// retrieve config name
+	configName := r.URL.Query().Get("name")
+	if configName == "" {
+		http.Error(w, "config name is required", http.StatusBadRequest)
+		return
+	}
+
+	config, found := configStore[configName]
+	if !found {
+		log.Println("config not found")
+		http.Error(w, "config not found", http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("versions config: %s", configName)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(config.Versions)
 }
