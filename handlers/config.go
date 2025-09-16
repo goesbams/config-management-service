@@ -13,7 +13,7 @@ import (
 var configStore = make(map[string]models.Config)
 
 func CreateConfig(w http.ResponseWriter, r *http.Request) {
-	log.Println("request create configuration")
+	log.Println("request create config")
 
 	// read input
 	var newConfig models.Config
@@ -26,12 +26,12 @@ func CreateConfig(w http.ResponseWriter, r *http.Request) {
 
 	// validate config
 	if err := utils.ValidateConfig(newConfig); err != nil {
-		log.Println("invalid configuration data", err)
+		log.Println("invalid config data", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	// store new config with a version
+	// store new config
 	configStore[newConfig.Name] = newConfig
 
 	// config created response
@@ -41,7 +41,7 @@ func CreateConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateConfig(w http.ResponseWriter, r *http.Request) {
-	log.Println("request update configuration")
+	log.Println("request update config")
 
 	var updatedConfig models.Config
 	err := json.NewDecoder(r.Body).Decode(&updatedConfig)
@@ -51,8 +51,8 @@ func UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := utils.ValidateConfig(updatedConfig, configStore); err != nil {
-		log.Println("invalid configuration data")
+	if err := utils.ValidateConfig(updatedConfig); err != nil {
+		log.Println("invalid config data")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -64,64 +64,74 @@ func UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedConfig.Version = existingConfig.Version + 1
+	// increment latest version
+	ev := existingConfig.Versions
+	newVersion := ev[len(ev)-1].Version + 1
+	updatedConfig.Versions = append(updatedConfig.Versions,
+		models.ConfigVersion{
+			Version:  newVersion,
+			Property: updatedConfig.Versions[0].Property,
+		},
+	)
+
+	// store updated config
 	configStore[updatedConfig.Name] = updatedConfig
 
-	log.Printf("config updated: %s, version: %d", updatedConfig.Name, updatedConfig.Version)
+	log.Printf("config updated: %s, version: %d", updatedConfig.Name, newVersion)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(updatedConfig)
 }
 
 func RollbackConfig(w http.ResponseWriter, r *http.Request) {
-	log.Println("request for rollback configuration")
+	// log.Println("request rollback config")
 
-	var rollbackRequest struct {
-		Name    string `json:"name"`
-		Version int    `json:"version"`
-	}
+	// var rollbackRequest struct {
+	// 	Name    string `json:"name"`
+	// 	Version int    `json:"version"`
+	// }
 
-	err := json.NewDecoder(r.Body).Decode(&rollbackRequest)
-	if err != nil {
-		log.Println("error decoding request body:", err)
-		http.Error(w, "invalid json", http.StatusBadRequest)
-		return
-	}
+	// err := json.NewDecoder(r.Body).Decode(&rollbackRequest)
+	// if err != nil {
+	// 	log.Println("error decoding request body:", err)
+	// 	http.Error(w, "invalid json", http.StatusBadRequest)
+	// 	return
+	// }
 
-	existingConfig, exists := configStore[rollbackRequest.Name]
-	if !exists || rollbackRequest.Version >= existingConfig.Version {
-		log.Println("invalid version")
-		http.Error(w, "invalid version", http.StatusBadRequest)
-		return
-	}
+	// existingConfig, exists := configStore[rollbackRequest.Name]
+	// if !exists || rollbackRequest.Version >= existingConfig.Version {
+	// 	log.Println("invalid version")
+	// 	http.Error(w, "invalid version", http.StatusBadRequest)
+	// 	return
+	// }
 
-	rollbackConfig := existingConfig
-	rollbackConfig.Version = rollbackRequest.Version
-	configStore[rollbackRequest.Name] = rollbackConfig
+	// rollbackConfig := existingConfig
+	// rollbackConfig.Version = rollbackRequest.Version
+	// configStore[rollbackRequest.Name] = rollbackConfig
 
-	log.Printf("config rollback: %s, version: %d", rollbackConfig.Name, rollbackConfig.Version)
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(rollbackConfig)
+	// log.Printf("config rollback: %s, version: %d", rollbackConfig.Name, rollbackConfig.Version)
+	// w.WriteHeader(http.StatusOK)
+	// json.NewEncoder(w).Encode(rollbackConfig)
 }
 
 func FetchConfig(w http.ResponseWriter, r *http.Request) {
-	log.Println("request fetch configuration")
+	// log.Println("request fetch config")
 
-	configName := r.URL.Query().Get("name")
-	if configName == "" {
-		http.Error(w, "config name is required", http.StatusBadRequest)
-		return
-	}
+	// configName := r.URL.Query().Get("name")
+	// if configName == "" {
+	// 	http.Error(w, "config name is required", http.StatusBadRequest)
+	// 	return
+	// }
 
-	config, exists := configStore[configName]
-	if !exists {
-		log.Println(w, "config not found")
-		http.Error(w, "config not found", http.StatusNotFound)
-		return
-	}
+	// config, exists := configStore[configName]
+	// if !exists {
+	// 	log.Println(w, "config not found")
+	// 	http.Error(w, "config not found", http.StatusNotFound)
+	// 	return
+	// }
 
-	log.Printf("latest config: %s", configName)
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(config)
+	// log.Printf("latest config: %s", configName)
+	// w.WriteHeader(http.StatusOK)
+	// json.NewEncoder(w).Encode(config)
 }
 
 func ListVersionsHandler(w http.ResponseWriter, r *http.Request) {
