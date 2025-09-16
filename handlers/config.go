@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/goesbams/config-management-service/models"
 	"github.com/goesbams/config-management-service/utils"
@@ -64,19 +65,18 @@ func UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// increment latest version
-	ev := existingConfig.Versions
-	newVersion := ev[len(ev)-1].Version + 1
-	updatedConfig.Versions = append(updatedConfig.Versions,
-		models.ConfigVersion{
-			Version:  newVersion,
-			Property: updatedConfig.Versions[0].Property,
-		},
-	)
+	updatedVersion := existingConfig.Versions[len(existingConfig.Versions)-1].Version + 1
+	updatedVersionConfig := models.ConfigVersion{
+		Version:  updatedVersion,
+		Property: updatedConfig.Versions[0].Property,
+	}
+
+	existingConfig.Versions = append(existingConfig.Versions, updatedVersionConfig)
 
 	// store updated config
-	configStore[updatedConfig.Name] = updatedConfig
+	configStore[updatedConfig.Name] = existingConfig
 
-	log.Printf("config updated: %s, version: %d", updatedConfig.Name, newVersion)
+	log.Printf("config updated: %s, version: %d", updatedConfig.Name, updatedVersion)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(updatedConfig)
 }
@@ -120,12 +120,13 @@ func RollbackConfig(w http.ResponseWriter, r *http.Request) {
 
 	// update rollback config
 	rollbackConfig := existingConfig
-	rollbackConfig.Versions = append(rollbackConfig.Versions,
-		models.ConfigVersion{
-			Version:  newVersion,
-			Property: rollbackVersion.Property,
-		},
-	)
+	rollbackConfig.Versions = append(rollbackConfig.Versions, models.ConfigVersion{
+		Version:  newVersion,
+		Property: rollbackVersion.Property,
+	})
+
+	// Store the rollback config
+	configStore[rollbackConfig.Name] = rollbackConfig
 
 	log.Printf("config rollback: %s, version: %d", rollbackConfig.Name, newVersion)
 	w.WriteHeader(http.StatusOK)
@@ -148,9 +149,39 @@ func FetchConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("latest config: %s", configName)
+	// check if a spesific version requested
+	versionStr := r.URL.Query().Get("version")
+	if versionStr != "" {
+
+		// convert to int
+		version, err := strconv.Atoi(versionStr)
+		if err != nil {
+			log.Println("invalid version format")
+			http.Error(w, "invalid version format", http.StatusBadRequest)
+			return
+		}
+
+		if version <= 0 || version > len(config.Versions) {
+			log.Println("version not found")
+			http.Error(w, "version not found", http.StatusBadRequest)
+			return
+		}
+
+		// specific version
+		specificVersion := config.Versions[version-1]
+
+		log.Printf("spesific config version %d: %s", version, config.Name)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(specificVersion)
+		return
+	}
+
+	// latest version
+	latestVersion := config.Versions[len(config.Versions)-1]
+
+	log.Printf("latest config version %s", config.Name)
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(config)
+	json.NewEncoder(w).Encode(latestVersion)
 }
 
 func ListVersionsHandler(w http.ResponseWriter, r *http.Request) {
