@@ -3,6 +3,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod tidy
 COPY . .
+RUN go test ./... -v
 RUN go build -o config-management-app .
 
 FROM alpine:latest  
