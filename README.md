@@ -50,7 +50,7 @@ go run main.go
 ```
 
 3. Run test
-```
+```sh
 make test
 ```
 
@@ -58,15 +58,15 @@ make test
 
 1. Build docker image:
 
-```
+```sh
 make docker-build
 ```
 2. Start container
-```
+```sh
 make docker-up
 ```
 3. Stop and remove container
-```
+```sh
 make docker-down
 ```
 
@@ -122,4 +122,13 @@ curl -X GET "http://localhost:8090/config/versions?name=Main%20Database%20Config
 ## OpenAPI Specification
 - All endpoints, request bodies, and responses are documented there.
 - Use it with Swagger UI, code generators, or API clients.
+
+### How to access openapi-swagger
+
+1. Run the command
+```bash
+make docker-openapi
+```
+
+2. Access `http://localhost:8080`
 
