@@ -18,7 +18,7 @@ A service to create, update, fetch, rollback, and manage versions of configurati
   - [List all versions](#5-list-all-versions)
 - [Schema Explanation](#schema-explanation)
   - [Config Object](#config-object)
-  - [Version Object](#version-object)
+  - [Versions Object](#version-object)
 - [Design Decisions & Trade-offs](#design-decisions--trade-offs)
   - [Versioning per config](#1-versioning-per-config)
   - [In-memory vs persistent storage](#2-in-memory-vs-persistent-storage)
@@ -136,7 +136,7 @@ curl -X GET "http://localhost:8090/config/versions?name=Main%20Database%20Config
 | `type`     | string | Type of configuration (`DATABASE`, `API`, etc.)    |
 | `versions` | array  | List of version objects (see Version Object below) |
 
-### Version Object
+### Versions Object
 | Field      | Type   | Description                                 |
 | ---------- | ------ | ------------------------------------------- |
 | `version`  | int    | Version number                              |
@@ -156,7 +156,6 @@ curl -X GET "http://localhost:8090/config/versions?name=Main%20Database%20Config
 ### 3. Dockerized setup
 - Ensures environment consistency.
 - Trade-off: additional Docker knowledge required.
-
 
 ## Potential Improvements & Future Features
 - Add persistent storage with PostgreSQL or MongoDB

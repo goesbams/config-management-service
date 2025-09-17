@@ -164,3 +164,183 @@ func TestCreateConfig(t *testing.T) {
 		assert.Contains(t, rr.Body.String(), "config versions is required")
 	})
 }
+
+func setupConfig() models.Config {
+	return models.Config{
+		Name: "Main Database Config",
+		Type: "DATABASE",
+		Versions: []models.ConfigVersion{
+			{
+				Version: 1,
+				Property: map[string]interface{}{
+					"host":     "localhost",
+					"port":     5432,
+					"username": "admin",
+					"password": "secret",
+				},
+			},
+		},
+	}
+}
+
+func TestUpdateConfig(t *testing.T) {
+	handlers.ConfigStore = make(map[string]models.Config)
+	handlers.ConfigStore["Main Database Config"] = setupConfig()
+
+	t.Run("success update config", func(t *testing.T) {
+		update := models.Config{
+			Name: "Main Database Config",
+			Type: "DATABASE",
+			Versions: []models.ConfigVersion{
+				{
+					Version: 2,
+					Property: map[string]interface{}{
+						"host": "127.0.0.1",
+					},
+				},
+			},
+		}
+		data, _ := json.Marshal(update)
+		req, _ := http.NewRequest("POST", "/config/update", bytes.NewBuffer(data))
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(handlers.UpdateConfig)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		var updatedConfig models.Config
+		_ = json.NewDecoder(rr.Body).Decode(&updatedConfig)
+		assert.Equal(t, 2, updatedConfig.Versions[0].Version)
+	})
+
+	t.Run("error when config not found", func(t *testing.T) {
+		update := models.Config{
+			Name: "Unknown Config",
+			Type: "DATABASE",
+			Versions: []models.ConfigVersion{
+				{Version: 1, Property: map[string]interface{}{"host": "127.0.0.1"}},
+			},
+		}
+		data, _ := json.Marshal(update)
+		req, _ := http.NewRequest("POST", "/config/update", bytes.NewBuffer(data))
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(handlers.UpdateConfig)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusNotFound, rr.Code)
+		assert.Equal(t, "config not found", strings.TrimSpace(rr.Body.String()))
+	})
+}
+
+func TestRollbackConfig(t *testing.T) {
+	handlers.ConfigStore = make(map[string]models.Config)
+	handlers.ConfigStore["Main Database Config"] = setupConfig()
+	update := models.Config{
+		Name: "Main Database Config",
+		Type: "DATABASE",
+		Versions: []models.ConfigVersion{
+			{Version: 2, Property: map[string]interface{}{"host": "127.0.0.1"}},
+		},
+	}
+	handlers.ConfigStore["Main Database Config"] = update
+
+	t.Run("success rollback", func(t *testing.T) {
+		reqBody := `{"name":"Main Database Config","version":1}`
+		req, _ := http.NewRequest("POST", "/config/rollback", bytes.NewBuffer([]byte(reqBody)))
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(handlers.RollbackConfig)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		var rolledBack models.Config
+		_ = json.NewDecoder(rr.Body).Decode(&rolledBack)
+		assert.Equal(t, 3, rolledBack.Versions[len(rolledBack.Versions)-1].Version)
+	})
+
+	t.Run("error invalid version", func(t *testing.T) {
+		reqBody := `{"name":"Main Database Config","version":5}`
+		req, _ := http.NewRequest("POST", "/config/rollback", bytes.NewBuffer([]byte(reqBody)))
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(handlers.RollbackConfig)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		assert.Equal(t, "invalid version", strings.TrimSpace(rr.Body.String()))
+	})
+}
+
+func TestFetchConfig(t *testing.T) {
+	handlers.ConfigStore = make(map[string]models.Config)
+	handlers.ConfigStore["Main Database Config"] = setupConfig()
+
+	t.Run("fetch latest version", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/config/fetch?name=Main%20Database%20Config", nil)
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(handlers.FetchConfig)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		var fetched models.ConfigVersion
+		_ = json.NewDecoder(rr.Body).Decode(&fetched)
+		assert.Equal(t, 1, fetched.Version)
+	})
+
+	t.Run("fetch specific version", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/config/fetch?name=Main%20Database%20Config&version=1", nil)
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(handlers.FetchConfig)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		var fetched models.ConfigVersion
+		_ = json.NewDecoder(rr.Body).Decode(&fetched)
+		assert.Equal(t, 1, fetched.Version)
+	})
+
+	t.Run("error config not found", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/config/fetch?name=Unknown", nil)
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(handlers.FetchConfig)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusNotFound, rr.Code)
+		assert.Equal(t, "config not found", strings.TrimSpace(rr.Body.String()))
+	})
+
+	t.Run("error version not found", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/config/fetch?name=Main%20Database%20Config&version=5", nil)
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(handlers.FetchConfig)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusNotFound, rr.Code)
+		assert.Equal(t, "version not found", strings.TrimSpace(rr.Body.String()))
+	})
+}
+
+func TestListVersionsHandler(t *testing.T) {
+	handlers.ConfigStore = make(map[string]models.Config)
+	handlers.ConfigStore["Main Database Config"] = setupConfig()
+
+	t.Run("list all versions", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/config/versions?name=Main%20Database%20Config", nil)
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(handlers.ListVersionsHandler)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		var versions []models.ConfigVersion
+		_ = json.NewDecoder(rr.Body).Decode(&versions)
+		assert.Len(t, versions, 1)
+		assert.Equal(t, 1, versions[0].Version)
+	})
+
+	t.Run("error config not found", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/config/versions?name=Unknown", nil)
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(handlers.ListVersionsHandler)
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		assert.Equal(t, "config not found", strings.TrimSpace(rr.Body.String()))
+	})
+}

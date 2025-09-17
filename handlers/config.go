@@ -12,7 +12,7 @@ import (
 )
 
 // in-memory storing
-var configStore = make(map[string]models.Config)
+var ConfigStore = make(map[string]models.Config)
 
 func CreateConfig(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -39,7 +39,7 @@ func CreateConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// store new config
-	configStore[newConfig.Name] = newConfig
+	ConfigStore[newConfig.Name] = newConfig
 
 	log.Printf("new config created: %s", newConfig.Name)
 	w.WriteHeader(http.StatusCreated)
@@ -68,9 +68,9 @@ func UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("check the existingConfig", configStore)
+	fmt.Println("check the existingConfig", ConfigStore)
 
-	existingConfig, found := configStore[updatedConfig.Name]
+	existingConfig, found := ConfigStore[updatedConfig.Name]
 	if !found {
 		log.Println("config not found")
 		http.Error(w, "config not found", http.StatusNotFound)
@@ -87,7 +87,7 @@ func UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	existingConfig.Versions = append(existingConfig.Versions, updatedVersionConfig)
 
 	// store updated config
-	configStore[updatedConfig.Name] = existingConfig
+	ConfigStore[updatedConfig.Name] = existingConfig
 
 	log.Printf("config updated: %s, version: %d", updatedConfig.Name, updatedVersion)
 	w.WriteHeader(http.StatusOK)
@@ -115,7 +115,7 @@ func RollbackConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// retrieve existing config
-	existingConfig, found := configStore[rollbackRequest.Name]
+	existingConfig, found := ConfigStore[rollbackRequest.Name]
 	if !found {
 		log.Println("config not found")
 		http.Error(w, "config not found", http.StatusNotFound)
@@ -144,7 +144,7 @@ func RollbackConfig(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Store the rollback config
-	configStore[rollbackConfig.Name] = rollbackConfig
+	ConfigStore[rollbackConfig.Name] = rollbackConfig
 
 	log.Printf("config rollback: %s, version: %d", rollbackConfig.Name, newVersion)
 	w.WriteHeader(http.StatusOK)
@@ -165,7 +165,7 @@ func FetchConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	config, found := configStore[configName]
+	config, found := ConfigStore[configName]
 	if !found {
 		log.Println(w, "config not found")
 		http.Error(w, "config not found", http.StatusNotFound)
@@ -222,7 +222,7 @@ func ListVersionsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	config, found := configStore[configName]
+	config, found := ConfigStore[configName]
 	if !found {
 		log.Println("config not found")
 		http.Error(w, "config not found", http.StatusBadRequest)
