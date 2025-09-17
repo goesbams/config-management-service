@@ -15,8 +15,17 @@ A service to create, update, fetch, rollback, and manage versions of configurati
   - [Update a config](#2-update-a-config)  
   - [Rollback a config](#3-rollback-a-config)  
   - [Fetch a config](#4-fetch-a-config)  
-  - [List all versions](#5-list-all-versions)  
-- [OpenAPI Specification](#openapi-specification)  
+  - [List all versions](#5-list-all-versions)
+- [Schema Explanation](#schema-explanation)
+  - [Config Object](#config-object)
+  - [Version Object](#version-object)
+- [Design Decisions & Trade-offs](#design-decisions--trade-offs)
+  - [Versioning per config](#1-versioning-per-config)
+  - [In-memory vs persistent storage](#2-in-memory-vs-persistent-storage)
+  - [Dockerized setup](#3-dockerized-setup)
+- [Potential Improvements & Future Features](#potential-improvements--future-features)
+- [OpenAPI Specification](#openapi-specification)
+  - [How to access openapi-swagger](#how-to-access-openapi-swagger)
 
 ---
 
@@ -119,6 +128,40 @@ curl -X GET "http://localhost:8090/config/versions?name=Main%20Database%20Config
   -H "accept: application/json"
 ```
 
+## Schema Explanation
+### Config Object
+| Field      | Type   | Description                                        |
+| ---------- | ------ | -------------------------------------------------- |
+| `name`     | string | Unique name of the configuration                   |
+| `type`     | string | Type of configuration (`DATABASE`, `API`, etc.)    |
+| `versions` | array  | List of version objects (see Version Object below) |
+
+### Version Object
+| Field      | Type   | Description                                 |
+| ---------- | ------ | ------------------------------------------- |
+| `version`  | int    | Version number                              |
+| `property` | object | Key-value pairs of configuration properties |
+
+
+## Design Decisions & Trade-offs
+
+### 1. Versioning per config
+- Allows rollback and history tracking.
+- Trade-off: extra storage overhead for large configs.
+
+### 2. In-memory vs persistent storage
+- Currently in-memory for simplicity and test purposes.
+- Persistent DB could be added for durability.
+
+### 3. Dockerized setup
+- Ensures environment consistency.
+- Trade-off: additional Docker knowledge required.
+
+
+## Potential Improvements & Future Features
+- Add persistent storage with PostgreSQL or MongoDB
+- Integration with CI/CD pipelines
+
 ## OpenAPI Specification
 - All endpoints, request bodies, and responses are documented there.
 - Use it with Swagger UI, code generators, or API clients.
@@ -130,5 +173,5 @@ curl -X GET "http://localhost:8090/config/versions?name=Main%20Database%20Config
 make docker-openapi
 ```
 
-2. Access `http://localhost:8080`
+2. Open browser at `http://localhost:8080`
 
