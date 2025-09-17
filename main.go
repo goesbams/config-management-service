@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	// Routes Setup
+	// routes Setup
 	http.HandleFunc("/config", handlers.CreateConfig)
 	http.HandleFunc("/config/update", handlers.UpdateConfig)
 	http.HandleFunc("/config/rollback", handlers.RollbackConfig)

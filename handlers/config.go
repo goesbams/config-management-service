@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -14,6 +15,11 @@ import (
 var configStore = make(map[string]models.Config)
 
 func CreateConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	log.Println("request create config")
 
 	// read input
@@ -41,6 +47,11 @@ func CreateConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	log.Println("request update config")
 
 	var updatedConfig models.Config
@@ -56,6 +67,8 @@ func UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	fmt.Println("check the existingConfig", configStore)
 
 	existingConfig, found := configStore[updatedConfig.Name]
 	if !found {
@@ -82,6 +95,11 @@ func UpdateConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func RollbackConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	log.Println("request rollback config")
 
 	var rollbackRequest struct {
@@ -134,6 +152,11 @@ func RollbackConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func FetchConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	log.Println("request fetch config")
 
 	configName := r.URL.Query().Get("name")
@@ -185,6 +208,11 @@ func FetchConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListVersionsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	log.Println("request list config versions")
 
 	// retrieve config name
