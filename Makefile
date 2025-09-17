@@ -1,5 +1,5 @@
 
-.PHONY: run test docker-build docker-up docker-test docker-down
+.PHONY: run test docker-build docker-up docker-down
 
 run:
 	go run main.go
@@ -16,10 +16,3 @@ docker-up: docker-build
 docker-down:
 	docker stop config-management-service || true
 	docker rm config-management-service || true
-
-docker-test:
-	ifeq ($(OS),Windows_NT)
-		docker run --rm -v %cd%:/app -w /app golang:1.25 go test ./... -v
-	else
-		docker run --rm -v ${PWD}:/app -w /app golang:1.25 go test ./... -v
-	endif

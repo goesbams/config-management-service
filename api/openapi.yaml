@@ -1,0 +1,166 @@
+openapi: 3.0.3
+info:
+  title: Config Management Service
+  version: 1.0.0
+  description: |
+    A service to create, update, fetch, rollback, and manage versions of configurations.
+
+servers:
+  - url: http://localhost:8090
+
+paths:
+  /config:
+    post:
+      summary: Create a new configuration
+      operationId: createConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Config'
+      responses:
+        '201':
+          description: Config created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        '400':
+          description: Invalid config data
+
+  /config/update:
+    post:
+      summary: Update a configuration
+      operationId: updateConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Config'
+      responses:
+        '200':
+          description: Config updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        '400':
+          description: Invalid config data
+
+  /config/rollback:
+    post:
+      summary: Rollback to a previous version of a configuration
+      operationId: rollbackConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - version
+              properties:
+                name:
+                  type: string
+                  description: Config name
+                version:
+                  type: integer
+                  description: Version number to rollback to
+      responses:
+        '200':
+          description: Config rolled back successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        '400':
+          description: Invalid rollback request
+
+  /config/fetch:
+    get:
+      summary: Fetch configuration
+      operationId: fetchConfig
+      parameters:
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+          description: Config name
+        - in: query
+          name: version
+          required: false
+          schema:
+            type: integer
+          description: Specific version to fetch (latest if omitted)
+      responses:
+        '200':
+          description: Config fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        '404':
+          description: Config not found
+
+  /config/versions:
+    get:
+      summary: List versions of a configuration
+      operationId: listVersions
+      parameters:
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+          description: Config name
+      responses:
+        '200':
+          description: List of config versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Versions'
+        '404':
+          description: Config not found
+
+components:
+  schemas:
+    Config:
+      type: object
+      required:
+        - name
+        - type
+        - versions
+      properties:
+        name:
+          type: string
+          description: Name of the configuration
+        type:
+          type: string
+          description: Type of configuration
+          enum: [DATABASE, API_KEY, LOGGING, FEATURE_FLAG, NETWORK_SETTING]
+        versions:
+          type: array
+          description: Versions of the configuration
+          items:
+            $ref: '#/components/schemas/Versions'
+
+    Versions:
+      type: object
+      required:
+        - version
+        - property
+      properties:
+        version:
+          type: integer
+          description: Version number
+        property:
+          type: object
+          additionalProperties: true
+          description: Free-form configuration data (arbitrary JSON key-value pairs)
