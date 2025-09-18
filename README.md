@@ -158,7 +158,7 @@ curl -X GET "http://localhost:8090/config/versions?name=Main%20Database%20Config
 - Trade-off: additional Docker knowledge required.
 
 ## Potential Improvements & Future Features
-- Add persistent storage with PostgreSQL or MongoDB
+- Add persistent storage with PostgreSQL
 - Integration with CI/CD pipelines
 
 ## OpenAPI Specification
