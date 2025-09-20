@@ -8,7 +8,7 @@ SERVICE ?= $(SERVICE_APP)
 help:
 	@echo "Targets:"
 	@echo "  docker-build     Build $(SERVICE_APP) image"
-	@echo "  docker-up        Build lalu start ONLY $(SERVICE_APP)"
+	@echo "  docker-up        Build start ONLY $(SERVICE_APP)"
 	@echo "  docker-down      Stop & remove ONLY $(SERVICE_APP)"
 	@echo "  docker-openapi   Start ONLY $(SERVICE_SWAGGER)"
 	@echo "  docker-stop      docker compose down (semua)"
