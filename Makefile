@@ -11,9 +11,9 @@ help:
 	@echo "  docker-up        Build start ONLY $(SERVICE_APP)"
 	@echo "  docker-down      Stop & remove ONLY $(SERVICE_APP)"
 	@echo "  docker-openapi   Start ONLY $(SERVICE_SWAGGER)"
-	@echo "  docker-stop      docker compose down (semua)"
+	@echo "  docker-stop      docker compose down all images"
 	@echo "  docker-logs      Tail logs (default: $(SERVICE_APP))"
-	@echo "  ps               Tampilkan status container"
+	@echo "  ps               Show all containers"
 
 docker-build:
 	docker compose build $(SERVICE_APP)
