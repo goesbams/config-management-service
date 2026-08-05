@@ -28,60 +28,75 @@ graph TD
 
 ---
 
-## 📊 Sequence Diagram: Dynamic Configuration & Atomic Rollback Flow
+## 📊 Sequence Diagrams: Core Service Workflows
+
+### 🔍 1. Fetch Configuration Flow (`GET /config/fetch`)
+
+Menjelaskan alur pembacaan konfigurasi (*P99 high-speed read*). Klien dapat mengambil versi aktif terbaru (*default*) atau versi historis tertentu.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Client as Microservice / Admin Client
-    participant Router as HTTP Router (:8090)
-    participant Handler as Config Handler
+    actor Client as Microservice / Client App
+    participant Handler as Fetch Handler
+    participant Engine as Config Storage Engine
+
+    alt Case A: Fetch Latest Active Version (Default)
+        Client->>Handler: GET /config/fetch?name=DB_CONFIG
+        activate Handler
+        Handler->>Engine: GetLatestVersion("DB_CONFIG")
+        activate Engine
+        note over Engine: Thread-Safe Read: Acquire RLock()<br/>Retrieve last element: Array[len-1]
+        Engine-->>Handler: Return Active Version 2 Data
+        deactivate Engine
+        Handler-->>Client: 200 OK (Latest Version: 2, Properties: {...})
+        deactivate Handler
+    else Case B: Fetch Specific Historical Version
+        Client->>Handler: GET /config/fetch?name=DB_CONFIG&version=1
+        activate Handler
+        Handler->>Engine: GetVersion("DB_CONFIG", version=1)
+        activate Engine
+        note over Engine: Thread-Safe Read: Acquire RLock()<br/>Search array for Version 1
+        Engine-->>Handler: Return Historical Version 1 Data
+        deactivate Engine
+        Handler-->>Client: 200 OK (Version: 1, Properties: {...})
+        deactivate Handler
+    end
+```
+
+---
+
+### 🔄 2. Atomic Rollback Flow (`POST /config/rollback`)
+
+Menjelaskan proses **Rollback Aman (Immutable Audit Trail)**. Saat melakukan rollback ke `version 1`, sistem **TIDAK menghapus sejarah**, melainkan melakukan *cloning* data `version 1` menjadi **versi baru (`version 3`)** agar seluruh jejak audit tetap utuh.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Admin / Operations
+    participant Handler as Rollback Handler
     participant Engine as Version Control Engine
     participant Store as State Store Map
 
-    note over Client,Store: Scenario 1: Creating & Updating Dynamic Configuration (v1 -> v2)
-    Client->>Router: POST /config (Name: DB_CONFIG, Type: DATABASE, v1)
-    activate Router
-    Router->>Handler: CreateConfig(w, r)
+    Client->>Handler: POST /config/rollback (Name: DB_CONFIG, Target Version: 1)
     activate Handler
-    Handler->>Engine: Validate & Insert New Config
+    Handler->>Engine: RollbackConfig("DB_CONFIG", targetVersion=1)
     activate Engine
-    Engine->>Store: Store[DB_CONFIG] = Version 1
-    Store-->>Engine: State Saved
-    deactivate Engine
-    Handler-->>Router: 200 OK (Config Created)
-    deactivate Handler
-    Router-->>Client: 200 OK (Status: Created, Version: 1)
-    deactivate Router
+    Engine->>Store: Acquire Lock() & Search Target Version 1
+    activate Store
+    Store-->>Engine: Target Version 1 Properties Found ({ max_limit: 1000 })
+    deactivate Store
+    
+    note over Engine,Store: Immutable Rollback Strategy:<br/>Clone Version 1 properties into NEW Head Version (Version 3)
+    Engine->>Store: Append Version 3 (Content = Version 1)
+    activate Store
+    Store-->>Engine: Version 3 Appended & Active
+    deactivate Store
 
-    Client->>Router: POST /config/update (Name: DB_CONFIG, v2: max_limit=2000)
-    activate Router
-    Router->>Handler: UpdateConfig(w, r)
-    activate Handler
-    Handler->>Engine: Append Version 2
-    activate Engine
-    Engine->>Store: Append Version 2 to DB_CONFIG History
-    Store-->>Engine: Version 2 Appended
+    Engine-->>Handler: Rollback Completed (Active Version: 3)
     deactivate Engine
-    Handler-->>Router: 200 OK (Config Updated to v2)
+    Handler-->>Client: 200 OK (Status: Success, Active Version: 3, Rolled Back from v1)
     deactivate Handler
-    Router-->>Client: 200 OK (Status: Updated, Active Version: 2)
-    deactivate Router
-
-    note over Client,Store: Scenario 2: Atomic Rollback to Past Version (v2 -> v1)
-    Client->>Router: POST /config/rollback (Name: DB_CONFIG, Target Version: 1)
-    activate Router
-    Router->>Handler: RollbackConfig(w, r)
-    activate Handler
-    Handler->>Engine: Retrieve Historical Version 1 & Clone to New Head (v3)
-    activate Engine
-    Engine->>Store: Create Version 3 with Content of Version 1
-    Store-->>Engine: Atomic Rollback Saved
-    deactivate Engine
-    Handler-->>Router: 200 OK (Rollback Executed)
-    deactivate Handler
-    Router-->>Client: 200 OK (Active Version: 3, Content: Rolled back to v1)
-    deactivate Router
 ```
 
 ---
