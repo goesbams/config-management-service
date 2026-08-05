@@ -165,11 +165,23 @@ Open your browser at `http://localhost:8080` to view the interactive **OpenAPI /
 
 ---
 
-## 🧪 Local Test Verification
+## 🧪 Automated Testing Suite & Coverage
 
-The unit test suite has been verified locally and passes 100%:
+Services dilindungi oleh suite pengujian otomatis (**Unit Testing + HTTP Integration Testing**) menggunakan `httptest.NewRecorder()` dan `stretchr/testify/assert` pada berkas [`tests/config_test.go`](./tests/config_test.go):
+
+| Test Suite | Skenario Pengujian | Cakupan Error & Edge Cases | Status |
+| :--- | :--- | :--- | :---: |
+| `TestCreateConfig` | Inserte konfirmasi konfigurasi baru (DATABASE, API) | Handled `name` kosong, `type` invalid, `versions` 0 len | `PASS` ✅ |
+| `TestUpdateConfig` | Pencatatan penambahan versi baru (`v1` ➔ `v2`) | Handled `config_not_found` error | `PASS` ✅ |
+| `TestRollbackConfig` | Rollback versi atomic aman (`v2` ➔ `v1`) | Handled `invalid_version` error | `PASS` ✅ |
+| `TestFetchConfig` | Pembacaan versi aktif terbaru & versi spesifik | Handled `config_not_found` & `version_not_found` | `PASS` ✅ |
+| `TestListVersionsHandler` | Agregasi riwayat seluruh versi konfigurasi | Handled `config_not_found` error | `PASS` ✅ |
+
+### Menjalankan Pengujian Lokal:
 
 ```bash
+make test
+# atau
 go test -v ./...
 ```
 
