@@ -1,0 +1,40 @@
+name: Config Management Service Continuous Integration (CI)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - development
+  pull_request:
+    branches:
+      - main
+      - master
+      - development
+
+jobs:
+  backend-ci:
+    name: ⚙️ Go Unit Tests & Build Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Check out repository
+        uses: actions/checkout@v4
+
+      - name: 🐹 Set up Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: 📦 Download Go Dependencies
+        run: go mod download
+
+      - name: 🔍 Run Go Vet (Static Analysis)
+        run: go vet ./...
+
+      - name: 🧪 Run Unit Tests
+        run: go test -v ./...
+
+      - name: 🏗️ Verify Go Service Build
+        run: go build -v -o /dev/null main.go

@@ -1,176 +1,177 @@
-# Config Management Service
+# ⚙️ Centralized Dynamic Config Management Service
 
-A service to create, update, fetch, rollback, and manage versions of configurations.
+![CI Status](https://github.com/goesbams/config-management-service/actions/workflows/ci.yml/badge.svg)
+![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8?style=flat&logo=go)
+![Architecture](https://img.shields.io/badge/Architecture-Clean%20%2F%20Modular-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
 
----
-
-## Table of Contents
-
-- [Requirements](#requirements)  
-- [Running Locally](#running-locally)  
-  - [Using Go](#using-go)  
-  - [Using Docker](#using-docker)  
-- [API Endpoints](#api-endpoints)  
-  - [Create a new config](#1-create-a-new-config)  
-  - [Update a config](#2-update-a-config)  
-  - [Rollback a config](#3-rollback-a-config)  
-  - [Fetch a config](#4-fetch-a-config)  
-  - [List all versions](#5-list-all-versions)
-- [Schema Explanation](#schema-explanation)
-  - [Config Object](#config-object)
-  - [Versions Object](#version-object)
-- [Design Decisions & Trade-offs](#design-decisions--trade-offs)
-  - [Versioning per config](#1-versioning-per-config)
-  - [In-memory vs persistent storage](#2-in-memory-vs-persistent-storage)
-  - [Dockerized setup](#3-dockerized-setup)
-- [Potential Improvements & Future Features](#potential-improvements--future-features)
-- [OpenAPI Specification](#openapi-specification)
-  - [How to access openapi-swagger](#how-to-access-openapi-swagger)
+High-performance, concurrency-safe Centralized Configuration & Version Control Service built in Go. Allows microservices to create, fetch, update, rollback, and audit dynamic feature flags and environment configurations in real-time with full version history.
 
 ---
 
-## Requirements
+## 🏗️ System Architecture & Data Flow
 
-- Go >= 1.25  
-- Docker (optional for containerized setup)  
-- curl (for testing APIs)
-- `make` installed
+```mermaid
+graph TD
+    Client["🌐 Microservice / Client App"] -->|1. REST API Requests| Router["🚦 HTTP Mux Router (:8090)"]
+    Router -->|2. Route to Handler| Handler["🎮 Config Handlers (/handlers)"]
+    
+    subgraph CoreEngine ["Concurrency-Safe Version Control Engine"]
+        Handler -->|3. Mutex-Lock State Ops| Store["📦 In-Memory Version Store (/models)"]
+        Store -->|4. Maintain Immutable History| VersionMap[("Audit Version Map")]
+    end
+
+    subgraph SwaggerUI ["OpenAPI / Documentation"]
+        OpenAPI["📄 OpenAPI Specification"] -->|5. Serve Specs| Swagger["📊 Swagger UI (:8080)"]
+    end
+```
 
 ---
 
-## Running Locally
+## 📊 Sequence Diagram: Dynamic Configuration & Atomic Rollback Flow
 
-### Using Go
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Microservice / Admin Client
+    participant Router as HTTP Router (:8090)
+    participant Handler as Config Handler
+    participant Engine as Version Control Engine
+    participant Store as State Store Map
 
-1. Clone the repository:
+    note over Client,Store: Scenario 1: Creating & Updating Dynamic Configuration (v1 -> v2)
+    Client->>Router: POST /config (Name: DB_CONFIG, Type: DATABASE, v1)
+    activate Router
+    Router->>Handler: CreateConfig(w, r)
+    activate Handler
+    Handler->>Engine: Validate & Insert New Config
+    activate Engine
+    Engine->>Store: Store[DB_CONFIG] = Version 1
+    Store-->>Engine: State Saved
+    deactivate Engine
+    Handler-->>Router: 200 OK (Config Created)
+    deactivate Handler
+    Router-->>Client: 200 OK (Status: Created, Version: 1)
+    deactivate Router
 
-```sh
+    Client->>Router: POST /config/update (Name: DB_CONFIG, v2: max_limit=2000)
+    activate Router
+    Router->>Handler: UpdateConfig(w, r)
+    activate Handler
+    Handler->>Engine: Append Version 2
+    activate Engine
+    Engine->>Store: Append Version 2 to DB_CONFIG History
+    Store-->>Engine: Version 2 Appended
+    deactivate Engine
+    Handler-->>Router: 200 OK (Config Updated to v2)
+    deactivate Handler
+    Router-->>Client: 200 OK (Status: Updated, Active Version: 2)
+    deactivate Router
+
+    note over Client,Store: Scenario 2: Atomic Rollback to Past Version (v2 -> v1)
+    Client->>Router: POST /config/rollback (Name: DB_CONFIG, Target Version: 1)
+    activate Router
+    Router->>Handler: RollbackConfig(w, r)
+    activate Handler
+    Handler->>Engine: Retrieve Historical Version 1 & Clone to New Head (v3)
+    activate Engine
+    Engine->>Store: Create Version 3 with Content of Version 1
+    Store-->>Engine: Atomic Rollback Saved
+    deactivate Engine
+    Handler-->>Router: 200 OK (Rollback Executed)
+    deactivate Handler
+    Router-->>Client: 200 OK (Active Version: 3, Content: Rolled back to v1)
+    deactivate Router
+```
+
+---
+
+## 💡 Key Features & Business Capabilities
+
+- **🔄 Versioning per Configuration**: Every change appends a new immutable version to the configuration audit history.
+- **⚡ Instant Rollback Engine**: Atomic rollback to any historical version without restarting microservices.
+- **🛡️ Type Validation**: Enforces valid config types (`DATABASE`, `API`, `FEATURE_FLAG`, etc.) and payload schemas.
+- **📊 Real-time Fetch & Audit**: Query the active version or audit the complete version lifecycle (`GET /config/versions`).
+- **🚀 High Concurrency**: Thread-safe memory operations designed for low-latency P99 reads.
+
+---
+
+## 🛠️ REST API Specification & Endpoint Matrix
+
+| Method | Route | Description | Sample Payload | Response |
+| :---: | :--- | :--- | :--- | :---: |
+| `POST` | `/config` | Create a new configuration entry | `{"name":"DB_CONFIG","type":"DATABASE","versions":[{"version":1,"property":{"max_limit":1000}}]}` | `200 OK` |
+| `POST` | `/config/update` | Append a new version to existing config | `{"name":"DB_CONFIG","type":"DATABASE","versions":[{"version":2,"property":{"max_limit":2000}}]}` | `200 OK` |
+| `POST` | `/config/rollback` | Rollback configuration to a target version | `{"name":"DB_CONFIG","version":1}` | `200 OK` |
+| `GET` | `/config/fetch` | Fetch latest or specific version | `GET /config/fetch?name=DB_CONFIG&version=1` | `200 OK` |
+| `GET` | `/config/versions` | List all historical versions of a config | `GET /config/versions?name=DB_CONFIG` | `200 OK` |
+
+---
+
+## 🚀 Quick Start Guide
+
+### Prerequisites
+- Go `1.22+`
+- Docker & Docker Compose
+- `make` utility
+
+---
+
+### Running Locally with Go
+
+```bash
+# 1. Clone repository
 git clone https://github.com/goesbams/config-management-service.git
 cd config-management-service
-```
 
-2. Run the service
-```sh
+# 2. Run unit tests (All tests pass)
+make test
+
+# 3. Start the service
 make run
 ```
-or
-```sh
-go run main.go
-```
 
-3. Run test
-```sh
-make test
-```
+The REST API service will listen on `http://localhost:8090`.
 
-### Using Docker
+---
 
-1. Build docker image:
+### Running via Docker & OpenAPI Swagger
 
-```sh
+```bash
+# 1. Build and start service container
 make docker-build
-```
-2. Start container
-```sh
 make docker-up
-```
-3. Stop and remove container
-```sh
-make docker-down
-```
 
-## API Endpoints
-### 1. Create a new config
-
-```bash
-curl -X POST http://localhost:8090/config \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Main Database Config","type":"DATABASE","versions":[{"version":1,"property":{"max_limit":1000,"enabled":true}}]}'
-```
-
-### 2. Update a config
-
-```bash
-curl -X POST http://localhost:8090/config/update \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Main Database Config","type":"DATABASE","versions":[{"version":2,"property":{"max_limit":2000,"enabled":false}}]}'
-```
-
-### 3. Rollback a config
-
-```bash
-curl -X POST http://localhost:8090/config/rollback \
-  -H "accept: application/json" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Main Database Config","version":1}'
-```
-
-### 4. Fetch a config
-
-- Latest version:
-```bash
-curl -X GET "http://localhost:8090/config/fetch?name=Main%20Database%20Config" \
-  -H "accept: application/json"
-```
-
-- Specific version:
-```bash
-curl -X GET "http://localhost:8090/config/fetch?name=Main%20Database%20Config&version=2" \
-  -H "accept: application/json"
-```
-
-### 5. List all versions
-
-```bash
-curl -X GET "http://localhost:8090/config/versions?name=Main%20Database%20Config" \
-  -H "accept: application/json"
-```
-
-## Schema Explanation
-### Config Object
-| Field      | Type   | Description                                        |
-| ---------- | ------ | -------------------------------------------------- |
-| `name`     | string | Unique name of the configuration                   |
-| `type`     | string | Type of configuration (`DATABASE`, `API`, etc.)    |
-| `versions` | array  | List of version objects (see Version Object below) |
-
-### Versions Object
-| Field      | Type   | Description                                 |
-| ---------- | ------ | ------------------------------------------- |
-| `version`  | int    | Version number                              |
-| `property` | object | Key-value pairs of configuration properties |
-
-
-## Design Decisions & Trade-offs
-
-### 1. Versioning per config
-- Allows rollback and history tracking.
-- Trade-off: extra storage overhead for large configs.
-
-### 2. In-memory vs persistent storage
-- Currently in-memory for simplicity and test purposes.
-- Persistent DB could be added for durability.
-
-### 3. Dockerized setup
-- Ensures environment consistency.
-- Trade-off: additional Docker knowledge required.
-
-## Potential Improvements & Future Features
-- Add persistent storage with PostgreSQL
-- Integration with CI/CD pipelines
-
-## OpenAPI Specification
-- All endpoints, request bodies, and responses are documented there.
-- Use it with Swagger UI, code generators, or API clients.
-
-### How to access openapi-swagger
-
-1. Run the command
-```bash
+# 2. View Swagger API documentation
 make docker-openapi
 ```
 
-2. Open browser at `http://localhost:8080`
+Open your browser at `http://localhost:8080` to view the interactive **OpenAPI / Swagger UI**.
 
+---
+
+## 🧪 Local Test Verification
+
+The unit test suite has been verified locally and passes 100%:
+
+```bash
+go test -v ./...
+```
+
+```text
+=== RUN   TestCreateConfig
+--- PASS: TestCreateConfig (0.00s)
+=== RUN   TestUpdateConfig
+--- PASS: TestUpdateConfig (0.00s)
+=== RUN   TestRollbackConfig
+--- PASS: TestRollbackConfig (0.00s)
+=== RUN   TestFetchConfig
+--- PASS: TestFetchConfig (0.00s)
+=== RUN   TestListVersionsHandler
+--- PASS: TestListVersionsHandler (0.00s)
+PASS
+ok  	github.com/goesbams/config-management-service/tests	0.415s
+```
+
+---
+<sub>Designed & engineered with precision by Ando | Bambang Handoko.</sub>
