@@ -68,7 +68,7 @@ sequenceDiagram
 
 ### 🔄 2. Atomic Rollback Flow (`POST /config/rollback`)
 
-Menjelaskan proses **Rollback Aman (Immutable Audit Trail)**. Saat melakukan rollback ke `version 1`, sistem **TIDAK menghapus sejarah**, melainkan melakukan *cloning* data `version 1` menjadi **versi baru (`version 3`)** agar seluruh jejak audit tetap utuh.
+Menjelaskan proses **Rollback Aman (Immutable Audit Trail)**. Saat melakukan rollback ke `version 1`, sistem **TIDAK PERNAH MENGHAPUS SEJARAH (History Perubahan Version)**. Setiap rollback menyalin (*clone*) data `version 1` dan menuliskannya sebagai **versi baru (`version 3`)**, sehingga 100% riwayat kronologis perubahan versi dari awal hingga akhir tersimpan utuh, aman, dan transparan untuk audit.
 
 ```mermaid
 sequenceDiagram
